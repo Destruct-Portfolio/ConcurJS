@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "module": "esnext", // required
+    "target": "es2017", // required
+    "noImplicitAny": true,
+    "sourceMap": false,
+    "strict": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "emitDecoratorMetadata": true, // required
+    "experimentalDecorators": true, // required
+    "declaration": false,
+    "importHelpers": true, // required
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "Node", // required
+    "esModuleInterop": true, // required
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", "dist"]
+}

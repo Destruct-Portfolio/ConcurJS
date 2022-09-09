@@ -1,0 +1,16 @@
+{
+  "type": "module",
+  "scripts": {
+    "start": "rimraf dist/* && tsc && cd dist && node index.js"
+  },
+  "dependencies": {
+    "@types/winston": "^2.4.4",
+    "rimraf": "^3.0.2",
+    "tslib": "^2.4.0",
+    "typescript": "^4.8.3",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.16"
+  }
+}
