@@ -50,7 +50,7 @@ export default class Worker {
              * Setting up the logger for this job.
              */
             this.#logger = new Logger(label, session)
-            this.#logger.label = Job01.name
+            this.#logger.label = Job02.name
 
             this.#args = args
 
@@ -66,13 +66,13 @@ export default class Worker {
       this.#event.on('received', ()=>{
          const result = {
             source: PATH.basename(__filename).split('.')[0],
-            product: new Job01(this.#args, this.#logger).do()
+            product: new Job02(this.#args, this.#logger).do()
          }
             /**
              * Sends the output back to the handler
              */
          this.#IPCClient!.write(JSON.stringify(result))
-         this.#IPCClient!.destroy();
+         this.#IPCClient!.end();
       })
       })
 
@@ -91,7 +91,7 @@ export default class Worker {
 }
 
 
-export class Job01 {
+export class Job02 {
    #logger: Logger;
    #args: unknown;
    constructor (args: unknown, logger: Logger){
@@ -101,7 +101,7 @@ export class Job01 {
 
    do(){
       this.#logger.info(`${this.#args}`)
-      return 'haha'
+      return 'hoho'
    }
 }
 

@@ -29,6 +29,7 @@ export default class Handler {
     */
    static workers = {
       work_01: "worker-01",
+      work_02: "worker-02",
    }
    #event:EventEmitter;
    #children:{[index: string]: child_process.ChildProcess};
@@ -95,7 +96,10 @@ export default class Handler {
 
          }); 
          connection.on('error', (error) => { 
-            this.#logger.error(`Error: ${error}.`)
+            /**
+             * Calling .destroy() on a socket emits an error. So I am silencing it the old way. Shht!
+             */
+            //this.#logger.error(`Error: ${error}.`)
          });
          
          connection.on('end', () => {
