@@ -1,9 +1,15 @@
 import net from 'net'
-import child_process from 'child_process'
+import child_process, { ChildProcess, ChildProcessWithoutNullStreams } from 'child_process'
 import EventEmitter from 'events';
 import { Message } from '../types/core';
 import Logger from '../misc/logger.js';
 import { cwd } from 'process';
+
+
+import dotenv from 'dotenv';
+dotenv.config({
+   path: '../.env'
+})
 
 
 export default class Handler {
@@ -13,7 +19,7 @@ export default class Handler {
 
    #IPCServer: net.Server | null;
    /**
-    * Keeps the progress of the workers in check. Triggers an @event when all jobs have completed.
+    * Keeps the progress of the workers in check. Triggers the @event 'done' when all jobs have completed.
     */
    #workers: Array<unknown>;
    #IPCServerPort: number;
@@ -25,18 +31,21 @@ export default class Handler {
       work_01: "worker-01",
    }
    #event:EventEmitter;
+   #children:{[index: string]: child_process.ChildProcess};
 
    constructor ( args: Message ) {
 
       this.#logger = new Logger(`${args}-handler`, 'session')
 
       this.#IPCServer = null
-      this.#IPCServerPort = 8080
+
+      this.#IPCServerPort = parseInt(process.env.IPC_PORT!)
 
       this.#event = new EventEmitter()
 
       this.#raw = args
       this.#workers = []
+      this.#children = {}
       this.#product = []
 
    }
@@ -44,37 +53,36 @@ export default class Handler {
    private setup () {
 
       this.#IPCServer = net.createServer((connection) => { 
+         
          this.#logger.info('Client connected.');
          this.#workers.push(connection)
+         this.#logger.info(`Connected clients: ${this.#workers.length}`)
 
          /**
           * Sends the args to each script.
           */
          const workerConfig = {
             args: this.#raw,
-            port: this.#IPCServerPort,
-            logger: this.#logger
+            label: this.#logger.label ,
+            session: this.#logger.session
          }
-         connection.write(JSON.stringify(workerConfig));
+         const argsSent = connection.write(JSON.stringify(workerConfig));
+         this.#logger.info(`Sending args to child: ${(argsSent? 'SUCCEEDED': 'FAILED')}.`)
          connection.pipe(connection);
  
          /**
           * Captures the return of each script.
           */
          connection.on('data', (data) => { 
-            this.#product.push(JSON.parse(data.toString()))
+
+            const { source, product } = JSON.parse(data.toString())
+            this.#children[source].kill()
+
+            this.#product.push(product)
             this.#logger.info('Received return.')
          }); 
          connection.on('close',  () => { 
             this.#logger.warn('Client closed.')
-
-         }); 
-         connection.on('error', (error) => { 
-            this.#logger.error(`Error: ${error}.`)
-         });
-         
-         connection.on('end', () => {
-            this.#logger.info('Client disconnected');
             this.#workers = <Array<net.Socket>>this.#workers.filter((worker) => worker !== connection)
 
             if (this.#workers.length ===0) {
@@ -84,6 +92,15 @@ export default class Handler {
                this.#IPCServer!.close()
 
             }
+
+         }); 
+         connection.on('error', (error) => { 
+            this.#logger.error(`Error: ${error}.`)
+         });
+         
+         connection.on('end', () => {
+            this.#logger.info('Client disconnected');
+            
          });  
       });
 
@@ -95,6 +112,7 @@ export default class Handler {
          /**
           * Notify that all workers are done.
           */
+         this.#logger.warn('Server shutting down ...')
          this.#event.emit('done')
       })
 
@@ -113,7 +131,19 @@ export default class Handler {
       this.#IPCServer?.on('listening', ()=>{
          for (const worker of Object.values(Handler.workers)) {
             this.#logger.info(`> node ${cwd()}\\scripts\\${worker}.js`)
-            child_process.spawn('node', [`..\\scripts\\${worker}.js`])
+            const child = child_process.spawn('node', [`scripts\\${worker}.js`])
+            /**
+             * Grabs the output to console of the child process.
+             */
+            child.stdout.on('data', (data)=>{
+               console.log(data.toString().trim())
+            })
+            child.stdout.on("error", (data)=>{
+               console.log(data.toString().trim())
+            })
+
+            this.#children[`${worker}`]= child
+
          }
 
       })
@@ -126,6 +156,7 @@ export default class Handler {
           * Runs when all workers are done.
           */
          this.#event.on('done', () =>{
+            
             resolve(this.#product)
          })
 

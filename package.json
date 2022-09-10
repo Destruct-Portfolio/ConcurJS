@@ -4,13 +4,15 @@
     "start": "rimraf dist/* && tsc && cd dist && node index.js"
   },
   "dependencies": {
+    "@types/dotenv": "^8.2.0",
     "@types/winston": "^2.4.4",
+    "dotenv": "^16.0.2",
     "rimraf": "^3.0.2",
     "tslib": "^2.4.0",
     "typescript": "^4.8.3",
     "winston": "^3.8.2"
   },
   "devDependencies": {
-    "@types/node": "^18.7.16"
+    "@types/node": "16"
   }
 }

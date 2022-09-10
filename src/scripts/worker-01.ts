@@ -1,6 +1,16 @@
 import net from 'net'
-import { Message } from '../types/core';
 import EventEmitter from 'events';
+
+import dotenv from 'dotenv';
+import Logger from '../misc/logger.js';
+import PATH from 'path';
+dotenv.config({
+   path: '../.env'
+})
+
+import {fileURLToPath} from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
 
 
 export default class Worker01 {
@@ -12,7 +22,8 @@ export default class Worker01 {
    constructor (){
 
       this.#IPCClient = null
-      this.#IPCServerPort = null
+
+      this.#IPCServerPort = parseInt(process.env.IPC_PORT!)
       this.#logger = null
       this.#args = null
       this.#event = new EventEmitter()
@@ -21,38 +32,57 @@ export default class Worker01 {
 
    private setup () {
 
-      this.#IPCClient = net.connect({port: this.#IPCServerPort}, ()=>{
-         this.#logger.info('Connected to handler.');  
+      this.#IPCClient = new net.Socket().connect(8080, ()=>{
+
       });
 
-      this.#IPCClient!.on('data', async (data)=>{
+      this.#IPCClient.on('connect', ()=>{
+         this.#IPCClient!.on('data', async (data)=>{
 
-         const {args, port, logger} = JSON.parse(data.toString())
-         console.log(args, port)
-         this.#logger = logger
-         this.#args = args
-         this.#IPCServerPort = port
+            const {args, label, session} = JSON.parse(data.toString())
+            console.log(JSON.stringify({
+               args: args,
+               label: label,
+               session: session
+            }))
 
-         this.#event.emit('received')
+            /**
+             * Setting up the logger for this job.
+             */
+            this.#logger = new Logger(label, session)
+            this.#logger.label = Job01.name
+
+            this.#args = args
+
+            this.#event.emit('received')
  
+         });
+
+
+      this.#IPCClient!.on('end', ()=>{ 
+         //this.#logger.info('Disconnected from handler.');
       });
 
-   }
-
-   public work () {
-
-            this.#IPCClient!.on('end', ()=>{ 
-         this.#logger.info('Disconnected from handler.');
-      });
-
-            this.#event.on('received', ()=>{
-         const result = new Job01().do()
+      this.#event.on('received', ()=>{
+         const result = {
+            source: PATH.basename(__filename).split('.')[0],
+            product: new Job01(this.#args, this.#logger).do()
+         }
             /**
              * Sends the output back to the handler
              */
          this.#IPCClient!.write(JSON.stringify(result))
          this.#IPCClient!.end();
       })
+      })
+
+      
+
+   }
+
+   public work () {
+
+      
 
       this.setup()
 
@@ -62,14 +92,19 @@ export default class Worker01 {
 
 
 export class Job01 {
-   constructor (){}
+   #logger: Logger;
+   #args: unknown;
+   constructor (args: unknown, logger: Logger){
+      this.#logger = logger
+      this.#args = args 
+   }
 
    do(){
+      this.#logger.info(`${this.#args}`)
       return 'haha'
    }
 }
 
-console.log('hello')
 new Worker01().work()
 
 

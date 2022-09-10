@@ -74,6 +74,14 @@ export default class Logger {
     this.#_actualize()
   }
 
+  public get label(){
+    return this.#_label
+  }
+
+  public get session(){
+    return this.#_session
+  }
+
   /**
    * Informative log.
    * @param message conten of the log
